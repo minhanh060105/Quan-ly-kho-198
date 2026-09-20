@@ -1,0 +1,45 @@
+name: visinh-ha-lab
+x-db: &db
+  image: mysql:8.4
+  environment:
+    MYSQL_ROOT_PASSWORD: ${LAB_DB_PASSWORD:?Set LAB_DB_PASSWORD}
+    MYSQL_ROOT_HOST: '%'
+  healthcheck:
+    test: ['CMD-SHELL', 'MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysql -uroot -e "SELECT 1"']
+    interval: 5s
+    timeout: 5s
+    retries: 40
+  restart: unless-stopped
+services:
+  db1:
+    <<: *db
+    command: ['--server-id=1','--report-host=db1','--gtid-mode=ON','--enforce-gtid-consistency=ON','--log-replica-updates=ON','--binlog-format=ROW','--innodb-buffer-pool-size=128M']
+    volumes: ['db1:/var/lib/mysql']
+  db2:
+    <<: *db
+    command: ['--server-id=2','--report-host=db2','--gtid-mode=ON','--enforce-gtid-consistency=ON','--log-replica-updates=ON','--binlog-format=ROW','--innodb-buffer-pool-size=128M']
+    volumes: ['db2:/var/lib/mysql']
+  db3:
+    <<: *db
+    command: ['--server-id=3','--report-host=db3','--gtid-mode=ON','--enforce-gtid-consistency=ON','--log-replica-updates=ON','--binlog-format=ROW','--innodb-buffer-pool-size=128M']
+    volumes: ['db3:/var/lib/mysql']
+  shell:
+    image: container-registry.oracle.com/mysql/community-operator:8.4
+    entrypoint: ['mysqlsh']
+    environment:
+      LAB_DB_PASSWORD: ${LAB_DB_PASSWORD}
+    profiles: ['tools']
+  router:
+    image: container-registry.oracle.com/mysql/community-router:8.4
+    environment:
+      MYSQL_HOST: db1
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${LAB_DB_PASSWORD}
+      MYSQL_INNODB_CLUSTER_MEMBERS: 3
+    ports: ['127.0.0.1:16446:6446']
+    profiles: ['router']
+volumes:
+  db1:
+  db2:
+  db3:

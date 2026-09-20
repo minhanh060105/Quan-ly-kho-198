@@ -1,0 +1,15 @@
+# MySQL 8.4 LTS. Set a distinct server_id/report_host on each of 3 hosts.
+# AdminAPI configureInstance configures the remaining replication settings.
+[mysqld]
+server_id=1
+report_host=192.168.1.101
+bind_address=0.0.0.0
+gtid_mode=ON
+enforce_gtid_consistency=ON
+log_bin=mysql-bin
+log_replica_updates=ON
+binlog_format=ROW
+# Fail closed at startup until Group Replication makes this member primary.
+super_read_only=ON
+innodb_flush_log_at_trx_commit=1
+sync_binlog=1

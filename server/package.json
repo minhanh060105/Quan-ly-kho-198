@@ -1,0 +1,26 @@
+{
+  "name": "visinh-kho-server",
+  "version": "1.0.0",
+  "description": "Backend Service & HA Leader Election cho Khoa Vi sinh - B\u1ec7nh vi\u1ec7n 198",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "./node_modules/.bin/nodemon src/app.js",
+    "test": "node --test test/*.test.js",
+    "migrate": "node scripts/migrate.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "bwip-js": "^4.5.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "deadline-13-9-app",
+  "version": "1.0.0",
+  "description": "Hệ thống Quản lý Kho - Khoa Vi sinh - Bệnh viện 198",
+  "scripts": {
+    "dev": "npm --prefix server run dev",
+    "start": "npm --prefix client start",
+    "start:server": "npm --prefix server start",
+    "start:client": "npm --prefix client start"
+  }
+}

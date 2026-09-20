@@ -1,0 +1,6 @@
+-- Run on the primary after loading schema/migration. Replace the password first.
+-- Restrict this subnet to actual backend addresses where practical.
+CREATE USER 'visinh'@'192.168.1.%' IDENTIFIED BY 'REPLACE_WITH_A_RANDOM_PASSWORD';
+GRANT SELECT, INSERT, UPDATE, DELETE ON visinh_db.* TO 'visinh'@'192.168.1.%';
+GRANT SELECT ON performance_schema.replication_group_members TO 'visinh'@'192.168.1.%';
+-- Do not grant SUPER, CONNECTION_ADMIN, SYSTEM_VARIABLES_ADMIN or replication management.
