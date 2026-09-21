@@ -111,6 +111,21 @@ document.addEventListener('keydown',e=>{if(!state.user||$('#modal').open)return;
 window.addEventListener('auth-expired',()=>logout());
 document.addEventListener('DOMContentLoaded',()=>{
  $('#server-url').value=api.baseUrl;
+ const switchAuth = register => { $('#login-form').hidden=register; $('#register-form').hidden=!register; $('#login-error').textContent=''; $('#register-error').textContent=''; $('#login-success').textContent=''; (register ? $('#register-form').elements.full_name : $('#login-form').elements.username).focus(); };
+ $('#show-register').addEventListener('click',()=>switchAuth(true));
+ $('#show-login').addEventListener('click',()=>switchAuth(false));
+ $('#register-form').addEventListener('submit',async e=>{
+  e.preventDefault();const f=e.target,b=f.querySelector('button[type="submit"]');b.disabled=true;$('#register-error').textContent='';
+  try {
+   const d=Object.fromEntries(new FormData(f));d.username=d.username.trim();d.full_name=d.full_name.trim();
+   if(d.password!==d.confirm_password)throw Error('Mật khẩu nhập lại chưa khớp.');
+   if(new TextEncoder().encode(d.password).length>72)throw Error('Mật khẩu tối đa 72 byte.');
+   const url=$('#server-url').value.trim().replace(/\/$/,'');if(!/^https?:\/\//.test(url))throw Error('Địa chỉ máy chủ không hợp lệ. Vui lòng quay lại đăng nhập để chỉnh kết nối máy chủ.');
+   api.baseUrl=url;localStorage.setItem('visinh_api_url',url);
+   const r=await api.request('/auth/register',{method:'POST',body:JSON.stringify(d)});
+   f.reset();switchAuth(false);$('#login-form').elements.username.value=d.username;$('#login-form').elements.password.value='';$('#login-success').textContent=r.message;
+  } catch(err){$('#register-error').textContent=err.message;}finally{b.disabled=false;}
+ });
  $('#login-form').addEventListener('submit',async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button[type="submit"]');b.disabled=true;$('#login-error').textContent='';try{const url=$('#server-url').value.trim().replace(/\/$/,'');if(!/^https?:\/\//.test(url))throw Error('Địa chỉ máy chủ không hợp lệ.');api.baseUrl=url;localStorage.setItem('visinh_api_url',url);const d=Object.fromEntries(new FormData(f)),r=await api.login(d.username,d.password);api.setToken(r.token);f.elements.password.value='';await session();}catch(err){$('#login-error').textContent=err.message;}finally{b.disabled=false;}});
  if(api.token)session().catch(err=>{logout();$('#login-error').textContent=err.message;});
 });

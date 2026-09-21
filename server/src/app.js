@@ -82,6 +82,7 @@ app.use('/api', async (req, res, next) => {
 
 // Auth & Users
 app.post('/api/auth/login', authCtrl.login);
+app.post('/api/auth/register', authCtrl.register);
 app.get('/api/users', verifyToken, requireRole(['ADMIN']), wrap(admin.users));
 app.post('/api/users', verifyToken, requireRole(['ADMIN']), wrap(admin.createUser));
 app.put('/api/users/:id', verifyToken, requireRole(['ADMIN']), wrap(admin.updateUser));

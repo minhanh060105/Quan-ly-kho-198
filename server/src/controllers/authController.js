@@ -2,6 +2,32 @@ const { databaseErrorStatus } = require('../utils/databaseErrors');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { generateToken } = require('../middleware/auth');
+const { transaction } = require('../utils/business');
+
+async function register(req, res) {
+  const { username, full_name, password, confirm_password } = req.body || {};
+  if (typeof username !== 'string' || !/^[a-zA-Z0-9_.-]{1,50}$/.test(username) ||
+      typeof full_name !== 'string' || !full_name.trim() || full_name.length > 100 ||
+      typeof password !== 'string' || password.length < 10 || Buffer.byteLength(password) > 72) {
+    return res.status(400).json({ success: false, message: 'Nhập họ tên (tối đa 100 ký tự), tên đăng nhập (tối đa 50 ký tự, chỉ gồm chữ, số, . _ -) và mật khẩu từ 10 ký tự, tối đa 72 byte.' });
+  }
+  if (password !== confirm_password) return res.status(400).json({ success: false, message: 'Mật khẩu nhập lại chưa khớp.' });
+  try {
+    const hash = await bcrypt.hash(password, 12);
+    await transaction(async c => {
+      const [result] = await c.query(
+        "INSERT INTO users (username,password_hash,full_name,role,status,permissions) VALUES (?,?,?,'STAFF','LOCKED',?)",
+        [username, hash, full_name.trim(), JSON.stringify({ can_import: false, can_export: false })]
+      );
+      await c.query('INSERT INTO audit_logs (user_id, action, target_type, target_id, details, ip_address, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+        [result.insertId, 'REGISTER', 'USER', String(result.insertId), JSON.stringify({ username }), req.ip || '']);
+    });
+    return res.status(201).json({ success: true, message: 'Đăng ký thành công. Vui lòng liên hệ quản trị viên để mở khóa tài khoản và cấp quyền.' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'Tên đăng nhập đã được sử dụng.' });
+    return res.status(databaseErrorStatus(err)).json({ success: false, message: 'Không thể đăng ký lúc này. Vui lòng thử lại.' });
+  }
+}
 
 async function login(req, res) {
   const { username, password } = req.body;
@@ -80,6 +106,7 @@ async function toggleLockUser(req, res) {
 }
 
 module.exports = {
+  register,
   login,
   getUsers,
   toggleLockUser

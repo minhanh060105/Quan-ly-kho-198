@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 function load(file, mocks = {}, globals = {}) {
   const absolute = path.resolve(__dirname, '..', file);
-  const context = { module: { exports: {} }, console, ...globals, require: name => name in mocks ? mocks[name] : require(name.startsWith('.') ? path.resolve(path.dirname(absolute), name) : name) };
+  const context = { module: { exports: {} }, console, Buffer, ...globals, require: name => name in mocks ? mocks[name] : require(name.startsWith('.') ? path.resolve(path.dirname(absolute), name) : name) };
   vm.runInNewContext(fs.readFileSync(absolute, 'utf8'), context);
   return context.module.exports;
 }
@@ -90,4 +90,37 @@ test('valid import writes quantity and location through the supplied transaction
   assert.equal(res.body.success, true);
   assert.equal(batch.values[2], 2); assert.equal(batch.values[4], 5);
   assert.equal((batch.sql.match(/\?/g) || []).length, batch.values.length);
+});
+
+test('registration validates input and cannot grant itself privileges', async () => {
+  const writes = [];
+  const ctrl = load('src/controllers/authController.js', {
+    '../config/db': {}, '../middleware/auth': {},
+    bcryptjs: { hash: async () => 'hashed-password' },
+    '../utils/business': { transaction: async work => work({ query: async (sql, args) => { writes.push({ sql, args }); return [{ insertId: 42 }]; } }) }
+  });
+  const body = { username: 'new.staff', full_name: ' Nhân viên ', password: 'strong-password', confirm_password: 'strong-password', role: 'ADMIN', status: 'ACTIVE', permissions: { can_import: true } };
+  for (const invalid of [{ password: 'short' }, { confirm_password: 'different' }, { username: 'bad name' }, { full_name: ' ' }, { password: 'ế'.repeat(30), confirm_password: 'ế'.repeat(30) }]) {
+    const res = response(); await ctrl.register({ body: { ...body, ...invalid } }, res); assert.equal(res.code, 400);
+  }
+  assert.equal(writes.length, 0);
+  const res = response(); await ctrl.register({ body, ip: '127.0.0.1' }, res);
+  assert.equal(res.code, 201); assert.equal(res.body.token, undefined);
+  assert.match(writes[0].sql, /'STAFF','LOCKED'/);
+  assert.equal(writes[0].args[1], 'hashed-password');
+  assert.equal(writes[0].args[2], 'Nhân viên');
+  assert.deepEqual(JSON.parse(writes[0].args[3]), { can_import: false, can_export: false });
+  assert.equal(writes[1].args[1], 'REGISTER');
+  assert.ok(!JSON.stringify(writes).includes('strong-password'));
+});
+
+test('registration handles duplicate usernames and database unavailability', async () => {
+  for (const [code, expected] of [['ER_DUP_ENTRY', 409], ['ECONNREFUSED', 503]]) {
+    const ctrl = load('src/controllers/authController.js', {
+      '../config/db': {}, '../middleware/auth': {}, bcryptjs: { hash: async () => 'hash' },
+      '../utils/business': { transaction: async () => { throw Object.assign(new Error('database detail'), { code }); } }
+    });
+    const res = response(); await ctrl.register({ body: { username: 'staff', full_name: 'Staff', password: 'strong-password', confirm_password: 'strong-password' } }, res);
+    assert.equal(res.code, expected); assert.ok(!res.body.message.includes('database detail'));
+  }
 });
